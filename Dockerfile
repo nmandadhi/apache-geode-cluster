@@ -6,7 +6,6 @@ ARG GEODE_DIST=apache-geode-$GEODE_VERSION
 
 RUN set -x \
     && apk add gnupg axel \
-    && apk add --no-cache --upgrade bash \
     && addgroup -g 1000 -S geode \
     && adduser --system -g geode --uid=1000 geode \
     && axel -q --insecure "https://archive.apache.org/dist/geode/$GEODE_VERSION/$GEODE_DIST.tgz" \
@@ -24,5 +23,3 @@ RUN set -x \
 USER geode
 WORKDIR /$GEODE_DIST
 ENV PATH=$PATH:/$GEODE_DIST/bin
-
-ENTRYPOINT ["gfsh", "version"]
