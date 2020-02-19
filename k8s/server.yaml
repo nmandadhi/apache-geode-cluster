@@ -73,7 +73,7 @@ spec:
             - sh
             - -c
             - |
-              until nslookup locator-external; do
+              until nslookup locator-headless-internal; do
                 echo "Waiting for locator"
                 sleep 2
               done;
