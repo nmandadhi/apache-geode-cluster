@@ -1,14 +1,14 @@
 #!/bin/bash
 
-address=$(kubectl get svc locator-public -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+address=$(kubectl get svc locator-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 if [[ $address == "" ]]; then
-  address=$(kubectl get svc locator-public -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  address=$(kubectl get svc locator-external -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
   if [[ $address == "" ]]; then
     echo "External IP is not yet available, try in sometime ..."
     exit 1
   fi
 fi
-port=$(kubectl get svc locator-public -o jsonpath='{.spec.ports[?(@.name == "http")].port}')
+port=$(kubectl get svc locator-external -o jsonpath='{.spec.ports[?(@.name == "http")].port}')
 
 cat <<EOF
 gfsh

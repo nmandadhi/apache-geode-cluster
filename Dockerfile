@@ -5,7 +5,7 @@ ARG GEODE_VERSION=1.11.0
 ARG GEODE_DIST=apache-geode-$GEODE_VERSION
 
 RUN set -x \
-    && apk add gnupg axel \
+    && apk add gnupg axel bash \
     && addgroup -g 1000 -S geode \
     && adduser --system -g geode --uid=1000 geode \
     && axel -q --insecure "https://archive.apache.org/dist/geode/$GEODE_VERSION/$GEODE_DIST.tgz" \
@@ -17,9 +17,6 @@ RUN set -x \
     && gpg "$GEODE_DIST.tgz.asc" \
     && rm -rf "$GNUPGHOME" \
 	&& tar --extract --file "$GEODE_DIST.tgz" \
-	&& rm -fr "$GEODE_DIST.tgz.asc" "$GEODE_DIST.tgz" \
-	&& chown -R geode:geode "/$GEODE_DIST"
+	&& rm -fr "$GEODE_DIST.tgz.asc" "$GEODE_DIST.tgz"
 
-USER geode
-WORKDIR /$GEODE_DIST
-ENV PATH=$PATH:/$GEODE_DIST/bin
+ENV PATH $PATH:/$GEODE_DIST/bin
