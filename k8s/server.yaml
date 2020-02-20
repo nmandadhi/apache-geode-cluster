@@ -39,7 +39,7 @@ spec:
             - -c
             - |
               gfsh start server --name=${HOSTNAME} --dir=/data --J=-Dgemfire.locator-wait-time=100 \
-              --locators=locator-service[10334] \
+              --locators=locator-internal[10334] \
               --max-heap=256m --hostname-for-clients=$(hostname -i) \
               --bind-address=$(hostname -i) --jmx-manager-hostname-for-clients=$(hostname -i) \
               --J=-Dgemfire.log-file=/var/log/server.log && \
@@ -74,7 +74,7 @@ spec:
             - sh
             - -c
             - |
-              until nslookup locator-service; do
+              until nslookup locator-internal; do
                 echo "Waiting for locator"
                 sleep 2
               done
