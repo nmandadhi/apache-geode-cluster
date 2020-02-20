@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+LOCATORS=/tmp/locators
+rm -fr $LOCATORS
+touch $LOCATORS
+HOST="locator-1"
+PORT="[10334]"
+
+ORD=$(echo "$HOST" | sed 's/[^0-9]*//g')
+
+tmp=0
+while [ $tmp -le "$ORD" ]; do
+  echo "locator-$tmp$PORT" >>$LOCATORS
+  tmp=$((tmp + 1))
+done
+
+LOCATORS=$(paste -s -d ',' - </tmp/locators)
+rm -fr /tmp/locators
+echo "${LOCATORS}"

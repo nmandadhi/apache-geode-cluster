@@ -30,19 +30,25 @@ spec:
       volumes:
         - name: varlog
           emptyDir: {}
+        - name: geode-config
+          configMap:
+            name: geode-config
       containers:
         - name: server
           image: gcr.io/solstice-api-junkyard/geode
           imagePullPolicy: IfNotPresent
           command:
             - sh
-            - -c
-            - |
-              gfsh start server --name=${HOSTNAME} --dir=/data --J=-Dgemfire.locator-wait-time=100 \
-              --locators=locator-internal[10334] \
-              --max-heap=256m --hostname-for-clients=$(hostname -i) \
-              --bind-address=$(hostname -i) --jmx-manager-hostname-for-clients=$(hostname -i) \
-              --J=-Dgemfire.log-file=/var/log/server.log && \
+              - -c
+              - |
+              sh /geode-config/genenete-properties.sh server && \
+              gfsh -e "start server \
+              --name=${HOSTNAME} \
+              --dir=/data \
+              --server-port=40404 \
+              --properties-file=/root/geode.properties \
+              --cache-xml-file=/server-config/cache.xml && \
+              --J=-Dgemfire.log-file=/var/log/server.log" && \
               tail -f /var/log/server.log
           ports:
             - containerPort: 40404
@@ -67,6 +73,9 @@ spec:
                   cat /data/vf.gf.server.pid | xargs ps
             initialDelaySeconds: 60
             periodSeconds: 5
+          volumeMounts:
+            - mountPath: /geode-config
+              name: geode-config
       initContainers:
         - name: wait-for-locator
           image: busybox
@@ -74,7 +83,7 @@ spec:
             - sh
             - -c
             - |
-              until nslookup locator-internal; do
+              until nslookup locator; do
                 echo "Waiting for locator"
                 sleep 2
               done
