@@ -21,61 +21,58 @@ spec:
     matchLabels:
       app: server
   serviceName: "server"
-  replicas: 3
+  replicas: 2
   template:
     metadata:
       labels:
         app: server
     spec:
-      volumes:
-        - name: varlog
-          emptyDir: {}
-        - name: geode-config
-          configMap:
-            name: geode-config
       containers:
         - name: server
           image: gcr.io/solstice-api-junkyard/geode
-          imagePullPolicy: IfNotPresent
           command:
             - sh
-              - -c
-              - |
+            - -c
+            - |
               sh /geode-config/genenete-properties.sh server && \
-              gfsh -e "start server \
-              --name=${HOSTNAME} \
-              --dir=/data \
-              --server-port=40404 \
-              --properties-file=/root/geode.properties \
-              --cache-xml-file=/server-config/cache.xml && \
-              --J=-Dgemfire.log-file=/var/log/server.log" && \
-              tail -f /var/log/server.log
+              gfsh start server \
+                  --name=${HOSTNAME} \
+                  --dir=/data \
+                  --server-port=40404 \
+                  --properties-file=/root/geode.properties \
+                  --cache-xml-file=/server-config/cache.xml && \
+              while true; do
+                sleep 2
+              done
           ports:
             - containerPort: 40404
               name: server
             - containerPort: 1099
               name: jmx
+          volumeMounts:
+            - name: geode-config
+              mountPath: /geode-config
+            - name: server-config
+              mountPath: /server-config
+            - name: geode-data
+              mountPath: /data
           livenessProbe:
             exec:
               command:
                 - sh
                 - -c
                 - |
-                  cat /data/vf.gf.server.pid | xargs ps
+                  PID=$(cat /data/vf.gf.server.pid) && [ -x /proc/${PID} ]
             initialDelaySeconds: 20
             periodSeconds: 1
-          readinessProbe:
-            exec:
-              command:
-                - sh
-                - -c
-                - |
-                  cat /data/vf.gf.server.pid | xargs ps
-            initialDelaySeconds: 60
-            periodSeconds: 5
-          volumeMounts:
-            - mountPath: /geode-config
-              name: geode-config
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - |
+                    gfsh stop locator --dir=/data
       initContainers:
         - name: wait-for-locator
           image: busybox
@@ -86,4 +83,62 @@ spec:
               until nslookup locator; do
                 echo "Waiting for locator"
                 sleep 2
-              done
+              done;
+      volumes:
+        - name: geode-config
+          configMap:
+            name: geode-config
+        - name: server-config
+          configMap:
+            name: server-config
+        - name: geode-data
+          persistentVolumeClaim:
+            claimName: geode-data
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - server
+              topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+    - metadata:
+        name: geode-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: server-config
+  namespace: geode
+data:
+  cache.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <cache xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns="http://geode.apache.org/schema/cache"
+      xsi:schemaLocation="http://geode.apache.org/schema/cache http://geode.apache.org/schema/cache/cache-1.0.xsd"
+      version="1.0" lock-lease="120" lock-timeout="60" search-timeout="300"
+      is-server="true" copy-on-read="false">
+
+        <region name="ExRegion1" refid="PARTITION_REDUNDANT_PERSISTENT" />
+        <region name="ExRegion2" refid="PARTITION_REDUNDANT_PERSISTENT" />
+    </cache>
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: server
+  namespace: geode
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: server

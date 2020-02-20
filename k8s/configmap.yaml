@@ -28,3 +28,4 @@ data:
     enable-cluster-configuration=false
     EOF
     echo "Genereated /root/geode.properties"
+    cat /root/geode.properties
