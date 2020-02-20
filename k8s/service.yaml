@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: geode
+    chart: geode-0.1.0
+    heritage: Tiller
+    release: geode
+  name: geode
+  namespace: default
+spec:
+  clusterIP: 10.12.1.87
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: locator-traffic
+    nodePort: 30878
+    port: 10334
+    protocol: TCP
+    targetPort: 10334
+  - name: pulse-traffic
+    nodePort: 32582
+    port: 7070
+    protocol: TCP
+    targetPort: 7070
+  selector:
+    app: geode
+    release: geode
+  sessionAffinity: None
+  type: LoadBalancer

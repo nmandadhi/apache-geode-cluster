@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: geode
+    chart: geode-0.1.0
+    heritage: Tiller
+    release: geode
+  name: geode
+  namespace: default
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: geode
+      release: geode
+  serviceName: ""
+  template:
+    metadata:
+      labels:
+        app: geode
+        release: geode
+    spec:
+      containers:
+      - command:
+        - sh
+        - -c
+        - |
+          gfsh -e "start locator --name=${HOSTNAME} --dir=/data \
+          --max-heap=128m --hostname-for-clients=$(hostname -i) \
+          --bind-address=$(hostname -i) --jmx-manager-hostname-for-clients=$(hostname -i) \
+          --http-service-port=7070 \
+          --J=-Dgemfire.log-file=/var/log/locator.log" \
+          -e "configure pdx --read-serialized=true --disk-store=DEFAULT" && \
+          tail -f /var/log/locator.log
+        image: apachegeode/geode:latest
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              cat /data/vf.gf.locator.pid | xargs ps
+          failureThreshold: 3
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: geode
+        ports:
+        - containerPort: 10334
+          name: locator
+          protocol: TCP
+        - containerPort: 1099
+          name: jmx
+          protocol: TCP
+        - containerPort: 7070
+          name: pulse
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - |
+              cat /data/vf.gf.locator.pid | xargs ps
+          failureThreshold: 3
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - emptyDir: {}
+        name: varlog
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
